@@ -6,13 +6,11 @@ import main.model.Theater
 import main.ui.BookingView
 import java.util.*
 
+private const val EXPIRATION_TIME: Long = 5000
+
 class TicketServer(private val theater: Theater,
                    private val holdings: Holdings,
                    private val view: BookingView): TicketService {
-
-    companion object {
-        const val EXPIRATION_TIME: Long = 5000
-    }
 
     override fun showSeats() {
         view.showSeats(theater.seatMap, theater.pitch)
@@ -44,22 +42,21 @@ class TicketServer(private val theater: Theater,
     }
 
     @Synchronized
-    override fun cancelHold(holdId: Int): Boolean {
-        val seatHold = holdings.getHolding(holdId) ?: return false
-        theater.mutateSeats(seatHold.seatsHeld, false)
-        holdings.removeHolding(holdId)
-        return true
-    }
+    override fun cancelHold(holdId: Int): Boolean =
+        holdings.getHolding(holdId)?.let { seatHold ->
+            theater.mutateSeats(seatHold.seatsHeld, false)
+            holdings.removeHolding(holdId)
+            true
+        } ?: false
 
     @Synchronized
     override fun reserveSeats(holdId: Int, email: String): Boolean {
-        val seatHold: SeatHold? = holdings.getHolding(holdId)
-        if (seatHold == null) {
-            view.displayMessage("Invalid id, your reservation hold might have expired")
-            return false
+        holdings.getHolding(holdId)?.let {
+            holdings.removeHolding(holdId)
+            view.displayMessage("Seats are booked!")
+            return true
         }
-        holdings.removeHolding(holdId)
-        view.displayMessage("Seats are booked!")
-        return true
+        view.displayMessage("Invalid id, your reservation hold might have expired")
+        return false
     }
 }
